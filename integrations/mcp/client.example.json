@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agent-trade-fusion": {
+      "command": "C:/path/to/AgentFusionTrade-VIBE/.venv/Scripts/python.exe",
+      "args": ["-m", "fusion.mcp_server"],
+      "env": {"PYTHONPATH": "C:/path/to/AgentFusionTrade-VIBE", "PYTHONIOENCODING": "utf-8"}
+    }
+  }
+}

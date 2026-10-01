@@ -1,0 +1,20 @@
+[project]
+name = "agent-trade-fusion"
+version = "0.2.0"
+description = "Local MT5 agent research and demo trading workbench"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "httpx>=0.28,<1",
+    "pydantic>=2.10,<3",
+    "MetaTrader5>=5.0.5000; sys_platform == 'win32'",
+    "mcp>=1.26,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

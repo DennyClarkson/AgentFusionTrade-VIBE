@@ -1,0 +1,15 @@
+# Local workbench UI · v0.2
+
+Two primary workspaces only: AI交易 and EA工作室. Settings, execution controls and journal/backtest are dialogs. Vanilla JS/CSS served by FastAPI; no build step, external font/CDN or fabricated market data.
+
+AI view uses a sequential actual-state graph: MT5 indicators, market, background, judge, risk, gateway. Clicking a node reveals inputs, evidence, actual tools, model/timing and configuration. Data inspector leads with current timeframe indicators; raw packets and extra news are collapsed. Public model evidence is shown; private reasoning protocol is never exposed. Separate latest_ai and last_ai_pipeline prevent EA polling from overwriting AI results.
+
+EA view has persistent conversation list, safe Markdown assistant replies, visible tool audit, independent AI/thinking controls, M1 parameters, asynchronous review/backtest/proposals and parameter export. User messages remain escaped verbatim; assistant formatting cannot introduce raw HTML, images or executable links. Native FusionExecutor connection, actual entry permission, AI decision and protection state are separate. Protocol/revisions/leases are collapsed; publication is not acknowledgment. Python supervises, MT5 executes.
+
+The EA view begins with a manual trading-hours panel: Beijing/UTC display, whole-hour start/end, explicit all-day and UTC weekends, current gate and saved version, separate draft preview and visible zero-risk sessions. Saving pauses management, waits for idle/flat and native pause ACK, saves the workflow with optimistic version checking, exports parameters and waits for matching native ACK; no automatic start. Preserve drafts during polling; explicit restore reloads the current version after conflicts. End-of-window managed exits and independent zero-risk restrictions are stated beside the controls. Pure frontend logic has isolated tests via `node --test tests/test_trading_hours.cjs`; native packet/API integration is in `tests/test_trading_hours_api.py`.
+
+Configuration forms derive constraints and numeric steps from JSON schema (number uses any, integer uses 1), with separate named profiles/history/activation and advanced JSON. Node editor provides dependencies, provider, prompt, thinking and tools controls. Mutations carry the per-process token; backend is authoritative for config versions, account ownership and risk. Polling preserves unsaved edits.
+
+Page navigation does not select execution module. Single analysis can execute only when backend permissions/mode/risk permit; UI does not automatically arm. Restart remains stopped. Backtest metrics are backend results with explicit sample/cost limits; failed validation is shown as failed.
+
+Validation: child-owned static syntax/DOM fixtures, root real browser inspection of both workspaces, node/config/history controls, persisted conversations, stopped/disarmed execution controls and real source/EA failure states. Screenshots and live test reports are in ignored artifacts. Larger research/Agent Lab APIs remain available; compact v2 UI prioritizes the two requested workflows.

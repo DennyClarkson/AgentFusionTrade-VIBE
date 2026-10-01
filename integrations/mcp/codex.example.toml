@@ -1,0 +1,11 @@
+# Optional external Codex integration. Merge into existing config; do not overwrite it.
+# Start the AgentTradeFusion workbench first. No API key belongs in this file.
+# Replace C:/path/to/AgentFusionTrade-VIBE with your checkout directory.
+[mcp_servers.agent-trade-fusion]
+command = "C:/path/to/AgentFusionTrade-VIBE/.venv/Scripts/python.exe"
+args = ["-m", "fusion.mcp_server"]
+cwd = "C:/path/to/AgentFusionTrade-VIBE"
+
+[mcp_servers.agent-trade-fusion.env]
+PYTHONPATH = "C:/path/to/AgentFusionTrade-VIBE"
+PYTHONIOENCODING = "utf-8"
