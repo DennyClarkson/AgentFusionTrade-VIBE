@@ -40,6 +40,8 @@ Agent 可查询更多行情、读取背景和历史观点，通过 `ask_agent` �
 
 管理 AI 有独立模型方案、思考设置、上下文和真实工具记录。参数候选需通过时间分段回测、成本压力、基线比较、变化幅度、配置版本及空仓检查。参数发布和 EA 确认是两个不同状态。
 
+每笔 EA 止损/止盈出场成交默认独立触发复盘与参数评估，包括追踪止损和部分成交。忙时持久排队、失败退避重试，不受定时或最低笔数门槛限制；证据不足时保留原参数。活动面板显示原因和队列进度，对话报告支持可横向滚动的 Markdown 表格。详见 [逐笔复盘说明](docs/NATIVE-EA.md#每次止损止盈后的复盘)。
+
 顶部“**允许交易时间**”支持北京时间/UTC、整点起止、跨午夜、全天和周末开关。保存会暂停管理并等待 EA 确认，之后手动解锁、启动。到结束时间会触发框架持仓退出；风险预算为零的时段也会显示，不会被“全天”覆盖。
 
 “**AI 管理活动**”显示当前任务、模型与思考选项、工具过程、错误、耗时和用量。没有累计 token 配额；单次输出可使用模型声明上限、服务默认或自定义值，仍受供应商上下文与响应限制。
@@ -64,7 +66,8 @@ Agent 可查询更多行情、读取背景和历史观点，通过 `ask_agent` �
 
 ```powershell
 .venv\Scripts\python.exe -m pytest -q
-node --test tests/test_trading_hours.cjs
+node --test tests/test_trading_hours.cjs tests/test_markdown.cjs
+node --check fusion/static/markdown.js
 node --check fusion/static/app.js
 ```
 

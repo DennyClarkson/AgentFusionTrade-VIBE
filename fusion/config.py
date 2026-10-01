@@ -247,6 +247,10 @@ class EASettings(Settings):
     thinking: bool = True
     prompt_key: Literal["ea_manager"] = "ea_manager"
     review_enabled: bool = True
+    review_on_protection_exit: bool = True
+    exit_review_scan_seconds: int = Field(default=5, ge=1, le=60)
+    exit_review_overlap_hours: int = Field(default=24, ge=1, le=720)
+    exit_review_retry_seconds: int = Field(default=60, ge=10, le=3600)
     review_interval_minutes: int = Field(default=30, ge=5, le=1440)
     auto_apply: bool = True
     min_review_trades: int = Field(default=5, ge=1, le=100)

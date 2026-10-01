@@ -36,6 +36,8 @@ class Store:
             CREATE TABLE IF NOT EXISTS conversations(id TEXT PRIMARY KEY,title TEXT,created_at REAL,updated_at REAL);
             CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY AUTOINCREMENT,conversation_id TEXT,role TEXT,content TEXT,created_at REAL,metadata TEXT);
             CREATE TABLE IF NOT EXISTS agent_memory(id INTEGER PRIMARY KEY AUTOINCREMENT,scope TEXT,created_at REAL,data TEXT);
+            CREATE TABLE IF NOT EXISTS ea_exit_events(scope TEXT,ticket TEXT,status TEXT,occurred_at REAL,data TEXT,PRIMARY KEY(scope,ticket));
+            CREATE INDEX IF NOT EXISTS ea_exit_pending ON ea_exit_events(scope,status,occurred_at);
             """)
         for category, data in DEFAULTS.items():
             if not any(x["category"] == category for x in self.configs()):

@@ -108,6 +108,8 @@ class Engine:
             if cfg["workflow"]["mode"] == "demo" and not self.armed:
                 raise ValueError("模拟实单模式需要先解锁当前模拟账户")
             if cfg["workflow"]["mode"] == "demo" and cfg["workflow"]["module"] == "ea":
+                if self.ea_manager and cfg["ea"]["review_on_protection_exit"]:
+                    self.ea_manager.initialize_exit_monitor(cfg)
                 self.ea_controller.start(cfg)
             else:
                 self.ea_controller.require_paused()

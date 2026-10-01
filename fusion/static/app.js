@@ -1,4 +1,5 @@
 import './trading-hours.js';
+import './markdown.js';
 const Hours = window.FusionTradingHours;
 const $ = id => document.getElementById(id);
 const scheduleEditor = {original:null,loadedKey:null,dirty:false,saving:false,offset:8};
@@ -24,6 +25,7 @@ Object.assign(labels,{trend_adx:'趋势 ADX 门槛',trend_slope_atr:'趋势斜�
 Object.assign(labels,{execution_magic:'原生 EA Magic ID',entry_lease_seconds:'入场许可租约 / 秒',ai_controls_entries:'AI 管理入场许可',decision_ttl_minutes:'AI 决策有效期 / 分钟',require_calendar:'要求有效经济日历'});
 Object.assign(labels,{thinking_format:'思考协议',max_parallel:'并行上限（当前串行）',tools_enabled:'工具调用'});
 Object.assign(labels,{output_token_policy:'单次输出 token 策略',max_tokens:'单次输出上限 / token（固定策略）'});
+Object.assign(labels,{review_on_protection_exit:'每笔止损 / 止盈后复盘调参',exit_review_scan_seconds:'成交检查间隔 / 秒',exit_review_overlap_hours:'成交历史重叠检查 / 小时',exit_review_retry_seconds:'失败复盘重试基准 / 秒'});
 notes.ai='密钥只填写服务端环境变量名称。测试使用已激活方案。没有累计 token 总用量限制；单次输出仍受模型能力与服务端约束。';
 function fieldLabel(key,prop={},category=state.category){if(key==='enabled')return category==='ai'?'启用 AI 连接':category==='news'?'启用背景采集':'启用此方案';return labels[key]||prop.title||key;}
 function fieldControl(id,key,value,original={},extra='',category=state.category){const prop=resolve(original,category),type=prop.type||typeof value;return `${type==='boolean'&&!prop.nullable?'':`<label for="${esc(id)}">${esc(fieldLabel(key,prop,category))}</label>`}${inputHTML(id,key,value,original,extra,category)}`;}
@@ -112,6 +114,12 @@ function renderEAActivity(){
   $('ea-activity-conversation').disabled=!reviewConversationID();
   const rows=job?[['当前阶段',running?(stages[last?.state]||'等待模型或工具返回'):failed?'失败':stateNames[job.status]||job.status],['模型',job.model||'未提供'],['思考模式',job.thinking==null?'未提供':job.thinking?'开启':'关闭'],['已用时',jobElapsed(job)],['开始时间',date(job.created_at)],['下一次复盘',review.next_review_at?date(review.next_review_at):'未提供']]:[['管理状态',review.busy?'处理中':'空闲'],['最近复盘',date(review.last_review_at)],['下一次复盘',review.next_review_at?date(review.next_review_at):'未提供'],['最近结果模型',message?.model||'未提供'],['思考模式',message?.thinking==null?'未提供':message.thinking?'开启':'关闭'],['最近调用耗时',message?.latency_ms!=null?`${num(message.latency_ms/1000,1)} 秒`:'未提供']];
   const summary=job?(job.error||job.result?.error||job.result_summary||job.result?.content):(review.last_error||message?.content);
+  if(job?.trigger?.kind==='protection_exit')rows.unshift(['触发来源',`${job.trigger.reason==='sl'?'止损 / 追踪止损':'止盈'}成交 #${job.trigger.ticket} · 第 ${job.trigger.attempts} 次评估`]);
+  const exits=review.exit_reviews;
+  if(exits){
+    rows.push(['成交后复盘',exits.enabled?`${exits.pending||0} 笔排队 · ${exits.running||0} 笔处理中 · ${exits.error||0} 笔待重试 · ${exits.completed||0} 笔完成`:'已关闭']);
+    if(exits.scan_error)rows.push(['成交监控错误',exits.scan_error]);
+  }
   const summaryError=failed||aiResultFailed(job?.result?.status)||(!job&&aiResultFailed(message?.status))||(!job&&!!review.last_error);
   const traces=list(job?.events).filter(v=>v.state==='tool_done'),fallbackTools=!job?list(message?.tools):[];
   const tools=traces.length?traces:fallbackTools;
@@ -129,7 +137,7 @@ async function syncEAActivity(){
   renderEAActivity();
 }
 function providerOptions(value='active'){const opts=[{id:'active',name:'继承当前 AI 方案'},...state.configs.filter(p=>p.category==='ai')];if(value&&!opts.some(p=>p.id===value))opts.push({id:value,name:`${value}（未找到）`});return opts.map(p=>`<option value="${esc(p.id)}"${p.id===value?' selected':''}>${esc(p.name)}${p.active?' · 激活':''}</option>`).join('');}
-function renderEASettings(){const config=active('ea'),data=state.ea?.settings||config?.data;if(!data){$('ea-strategy-fields').innerHTML=empty('EA 配置未加载');return;}const key=JSON.stringify(data);if(key===state.eaSettingsKey||state.eaDirty)return;state.eaSettingsKey=key;state.eaEditData=structuredClone(data);$('ea-ai-profile').innerHTML=providerOptions(data.ai_profile||'active');$('ea-thinking').innerHTML='<option value="true">开启</option><option value="false">关闭</option>';$('ea-thinking').value=String(data.thinking===true);const strategy=data.strategy||{},schema=resolve(schemaFor('ea').properties?.strategy,'ea');$('ea-strategy-fields').innerHTML=Object.entries(strategy).filter(([k])=>['symbol','bollinger_period','bollinger_deviation','trend_adx','range_bias','stop_atr','reward_risk','trailing_start_r','trailing_atr','breakeven_r'].includes(k)).map(([k,v])=>`<label class="${typeof v==='object'?'wide':''}">${esc(labels[k]||k)}${inputHTML(`ea-s-${k}`,k,v,schema.properties?.[k],`data-ea-strategy="${esc(k)}"`,'ea')}</label>`).join('')+`<label class="wide">自动复盘间隔 / 分钟${inputHTML('ea-review-interval','review_interval_minutes',data.review_interval_minutes,schemaFor('ea').properties?.review_interval_minutes,'','ea')}</label>`+['execution_magic','entry_lease_seconds','ai_controls_entries','decision_ttl_minutes','require_calendar'].filter(k=>Object.hasOwn(data,k)||Object.hasOwn(schemaFor('ea').properties||{},k)).map(k=>`<div class="wide">${fieldControl(`ea-native-${k}`,k,data[k]??schemaFor('ea').properties?.[k]?.default,schemaFor('ea').properties?.[k],`data-ea-setting="${esc(k)}"`,'ea')}</div>`).join('');}
+function renderEASettings(){const config=active('ea'),data=state.ea?.settings||config?.data;if(!data){$('ea-strategy-fields').innerHTML=empty('EA 配置未加载');return;}const key=JSON.stringify(data);if(key===state.eaSettingsKey||state.eaDirty)return;state.eaSettingsKey=key;state.eaEditData=structuredClone(data);$('ea-ai-profile').innerHTML=providerOptions(data.ai_profile||'active');$('ea-thinking').innerHTML='<option value="true">开启</option><option value="false">关闭</option>';$('ea-thinking').value=String(data.thinking===true);const strategy=data.strategy||{},schema=resolve(schemaFor('ea').properties?.strategy,'ea');$('ea-strategy-fields').innerHTML=Object.entries(strategy).filter(([k])=>['symbol','bollinger_period','bollinger_deviation','trend_adx','range_bias','stop_atr','reward_risk','trailing_start_r','trailing_atr','breakeven_r'].includes(k)).map(([k,v])=>`<label class="${typeof v==='object'?'wide':''}">${esc(labels[k]||k)}${inputHTML(`ea-s-${k}`,k,v,schema.properties?.[k],`data-ea-strategy="${esc(k)}"`,'ea')}</label>`).join('')+`<label class="wide">自动复盘间隔 / 分钟${inputHTML('ea-review-interval','review_interval_minutes',data.review_interval_minutes,schemaFor('ea').properties?.review_interval_minutes,'','ea')}</label>`+['review_on_protection_exit','execution_magic','entry_lease_seconds','ai_controls_entries','decision_ttl_minutes','require_calendar'].filter(k=>Object.hasOwn(data,k)||Object.hasOwn(schemaFor('ea').properties||{},k)).map(k=>`<div class="wide">${fieldControl(`ea-native-${k}`,k,data[k]??schemaFor('ea').properties?.[k]?.default,schemaFor('ea').properties?.[k],`data-ea-setting="${esc(k)}"`,'ea')}</div>`).join('');}
 async function saveEA(){const profile=active('ea');if(!profile)throw new Error('EA 方案未加载');const data=structuredClone(state.eaEditData||profile.data);data.ai_profile=$('ea-ai-profile').value;data.thinking=$('ea-thinking').value==='true';$('ea-strategy-fields').querySelectorAll('[data-ea-strategy]').forEach(el=>{data.strategy[el.dataset.eaStrategy]=readInput(el);});$('ea-strategy-fields').querySelectorAll('[data-ea-setting]').forEach(el=>{data[el.dataset.eaSetting]=readInput(el);});if($('ea-review-interval').value!=='')data.review_interval_minutes=Number($('ea-review-interval').value);const saved=await api(`/api/configs/ea/${encodeURIComponent(profile.id)}`,{name:profile.name,data,expected_version:profile.version},'PUT');await api(`/api/configs/ea/${encodeURIComponent(saved.id||profile.id)}/activate`,{});state.eaDirty=false;await reloadConfigs();await poll();toast('EA 配置已保存并启用');}
 async function loadConversation(id){const requested=String(id);state.conversation=requested;renderConversations();state.conversationVersion=list(state.ea?.conversations).find(c=>String(c.id)===requested)?.updated_at;let c;try{c=await api(`/api/ea/conversations/${encodeURIComponent(requested)}`,undefined,'GET');}catch(e){if(state.conversation===requested)state.conversationVersion=null;throw e;}if(state.conversation!==requested)return;$('conversation-title').textContent=c.title||'EA 策略助手';const key=JSON.stringify(c.messages);if(key!==state.transcriptKey){state.transcriptKey=key;$('chat-transcript').innerHTML=list(c.messages).length?c.messages.map(m=>`<article class="message ${m.role==='user'?'user':'assistant'}"><div class="message-header"><strong>${m.role==='user'?'你':'EA 助手'}</strong><span>${date(m.created_at)}</span></div><div class="message-content${m.role==='assistant'?' markdown':''}">${m.role==='assistant'?safeMarkdown(m.content):esc(m.content)}</div>${list(m.tools).length?`<div class="detail-block"><h3>工具记录 · ${m.tools.length}</h3>${toolTrace(m.tools)}</div>`:''}</article>`).join(''):empty('输入问题，开始当前对话');$('chat-transcript').scrollTop=$('chat-transcript').scrollHeight;}}
 async function createConversation(){const c=await api('/api/ea/conversations',{});state.transcriptKey=null;state.conversation=String(c.id);await poll();await loadConversation(c.id);$('chat-message').focus();return c;}
@@ -233,21 +241,7 @@ function renderBackground(){const b=state.background||{},now=Date.now()/1000,eve
   renderPreservingDetails('background',`<div class="background-health"><span class="${b.calendar_fresh?'muted':'negative'}">${esc(calendar)}</span><span class="${b.news_fresh?'muted':'negative'}">${esc(newsStatus)}</span>${providers?`<div>${providers}</div>`:''}</div>${rows}${more}${b.coverage_note?`<details class="advanced"><summary>覆盖范围与数据源</summary><p class="muted">${esc(b.coverage_note)}</p>${b.providers?raw('数据源检查记录',b.providers):''}</details>`:''}`);
 }
 function safeMarkdown(value){
-  // Escape all user/model text before adding a small fixed set of presentation tags.
-  const lines=esc(value??'').replace(/\r\n?/g,'\n').split('\n');
-  function inline(s){return s.replace(/`([^`\n]+)`|\*\*([^*\n]+)\*\*/g,(_,code,bold)=>code!==undefined?`<code>${code}</code>`:`<strong>${bold}</strong>`);}
-  let html='',paragraph=[],items=[],listTag=null;
-  function flushParagraph(){if(paragraph.length){html+=`<p>${paragraph.map(inline).join('<br>')}</p>`;paragraph=[];}}
-  function flushList(){if(items.length){html+=`<${listTag}>${items.map(item=>`<li>${inline(item)}</li>`).join('')}</${listTag}>`;items=[];listTag=null;}}
-  for(const line of lines){
-    if(!line.trim()){flushParagraph();flushList();continue;}
-    const heading=line.match(/^\s*(#{2,3})\s+(.+)$/);
-    if(heading){flushParagraph();flushList();const level=heading[1].length;html+=`<h${level}>${inline(heading[2])}</h${level}>`;continue;}
-    const bullet=line.match(/^\s*[-*]\s+(.+)$/),ordered=line.match(/^\s*\d+[.)]\s+(.+)$/);
-    if(bullet||ordered){flushParagraph();const next=bullet?'ul':'ol';if(listTag&&next!==listTag)flushList();listTag=next;items.push((bullet||ordered)[1]);}
-    else{flushList();paragraph.push(line);}
-  }
-  flushParagraph();flushList();return html;
+  return window.FusionMarkdown.render(value);
 }
 
 function scheduleChanges(){

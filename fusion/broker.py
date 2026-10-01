@@ -117,6 +117,28 @@ class MT5Broker:
             end = datetime.fromtimestamp(time.time() + self.offset + 60, timezone.utc)
             return plain(self._need(self.m.history_deals_get(start, end), "成交历史读取"))
 
+    def deal_history_snapshot(self, epoch, expected_account=None):
+        """Account-qualified history; retain raw times, normalize UTC exactly once."""
+        with self.lock:
+            before = self.status()
+            account = before["account"]
+            identity = (account.get("login"), account.get("server"))
+            if not before["connected"] or (expected_account is not None and identity != tuple(expected_account)):
+                raise BrokerError("成交历史账户不匹配或终端未连接")
+            rows = self.deals_since(epoch)
+            after = self.status()
+            if not after["connected"] or (after["account"].get("login"), after["account"].get("server")) != identity:
+                raise BrokerError("读取成交期间账户已切换，不能归入复盘")
+            reasons = {self.m.DEAL_REASON_SL: "sl", self.m.DEAL_REASON_TP: "tp"}
+            deals = []
+            for row in rows:
+                raw_time = row["time"]
+                raw_msc = row.get("time_msc", int(raw_time*1000))
+                exit_reason = reasons.get(row.get("reason")) if row.get("entry") in (self.m.DEAL_ENTRY_OUT, self.m.DEAL_ENTRY_OUT_BY) and row.get("type") in (self.m.DEAL_TYPE_BUY, self.m.DEAL_TYPE_SELL) else None
+                deals.append({**row, "time_raw": raw_time, "time_msc_raw": raw_msc,
+                              "time": raw_time-self.offset, "time_msc": raw_msc-int(self.offset*1000), "exit_reason": exit_reason})
+            return {"account": account, "deals": deals, "captured_at": time.time()}
+
     def loss_per_lot(self, symbol, side, entry, stop):
         with self.lock:
             self.connect()

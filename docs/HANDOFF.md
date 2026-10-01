@@ -14,6 +14,8 @@ Updated: 2026-10-01. This is the public VIBE development snapshot. The applicati
 - Sequential MT5 indicators -> market -> background -> judge -> risk, with per-node model/thinking/tool settings, upstream consultation and scoped memory.
 - Eleven independently versioned configuration categories; credentials are environment-variable names only.
 - Separate persistent EA conversation and manager, real tool calls, candidate replay, bounded parameter proposals and entry permissions.
+- Each confirmed native EA SL/TP exit fill queues a separate AI parameter review, bypassing scheduled/minimum-count gates. Account/server/symbol/Magic scope plus deal ticket prevents duplicate discovery; pending work survives interruption. Reviews use scoped automatic conversations and retain validation/flat/acknowledgment requirements for parameter changes.
+- Safe Markdown tables in conversations and AI activity reports: headers, alignment, inline code, long identifiers and local horizontal scrolling. Raw model HTML is escaped.
 - Native FusionExecutor/FusionKernel: closed M1/H1/D1 trend/Bollinger strategy, risk and event gates, durable intents, SL/TP and tightening-only trailing, unknown-result reconciliation. Optional FusionBridge supplies telemetry/calendar.
 - Exactly one execution owner. Native pause acknowledgment, flat exposure and resolved orders are required before parameter changes or ownership transfer. Restart stays stopped/disarmed.
 - Public AI activity: persisted job identity, model/tool events, errors, latency and usage. No cumulative token quota. Per-response output policy supports model capability discovery, provider default and explicit fixed limits.
@@ -22,11 +24,14 @@ Updated: 2026-10-01. This is the public VIBE development snapshot. The applicati
 
 ## Validation for this snapshot
 
-- Python full suite: **89 passed**, one upstream Starlette/httpx deprecation warning, 47.18 seconds.
-- Trading-hours JS: **8 tests passed**, covering conversion/boundaries/weekends, exposure, pause/config acknowledgment, version conflicts, instance changes, partial failure and no auto-start.
+- Final Python full suite: **107 passed**, one upstream Starlette/httpx deprecation warning, 59.63 seconds. This includes all 18 exit-review tests after the final account-conversation race correction.
+- Frontend JS: **13 tests passed** (8 trading-hours, 5 Markdown), including malformed tables, escaped/code pipes, fenced code and HTML injection. Both frontend scripts passed syntax checks.
+- Exit-review tests use isolated broker history/model responses: per-fill deduplication, busy queue, delayed history, account/symbol/Magic filtering, raw/UTC timestamps, failed scans, backoff/recovery, stop cancellation, completion-storage retry without rerunning AI, worker-start failure, bounded prompts and account-scoped conversations. No live SL/TP trade was created for this change.
 - Native compiler previously completed with zero errors/warnings; native connection, account-qualified parameter acknowledgment and calendar were observed locally. Compiled `.ex5` files are not shipped: rebuild in MetaEditor.
 - Actual provider thinking/tool history, sequential consultation, persistent chat and public activity were exercised in earlier isolated probes. They are opt-in, may consume API usage, and are not required for offline regression.
 - Browser checks covered both workspaces, actual AI activity and the new time editor. Public repository omits screenshots containing local account details.
+- The user's existing six-column/two-row candidate report was verified as a real table in the running browser, with long-ID wrapping and narrow-screen horizontal scrolling. The static UI is loaded; the running Python process still uses the previous backend. The exit-review feature requires a workbench restart and a user-started EA session; no EA source update or recompilation is required.
+- Root authored all critical changes and tests; a GPT-6.1-Sol child supplied table CSS and another performed read-only correctness review. Review findings on storage recovery, prompt size and account isolation were fixed and regression-tested. Existing live trading configuration and the user-started session were preserved.
 
 These checks do not certify profitability, actual native fills or full protection lifecycle behavior. No strategy has passed stability acceptance. The M1 preset's initial validation and cost-stress results were negative; see [RESEARCH.md](RESEARCH.md).
 
@@ -38,7 +43,8 @@ Use Windows, Python 3.12 and an MT5 demo terminal. From this checkout:
 uv sync --python 3.12 --locked
 .venv\Scripts\python.exe run.py
 .venv\Scripts\python.exe -m pytest -q
-node --test tests/test_trading_hours.cjs
+node --test tests/test_trading_hours.cjs tests/test_markdown.cjs
+node --check fusion/static/markdown.js
 node --check fusion/static/app.js
 ```
 
@@ -58,4 +64,4 @@ The complete pre-publication handoff was retained locally as ignored `docs/HANDO
 
 Published to [DennyClarkson/AgentFusionTrade-VIBE](https://github.com/DennyClarkson/AgentFusionTrade-VIBE), public, default branch `main`. Initial source snapshot: `588b310`. Public visibility and matching local/remote source revision were verified on 2026-10-01.
 
-The snapshot includes 62 files: complete Python/native/UI source, tests, lockfile, design sketch and development rules. Runtime databases, personal paths/account logs, secrets, binaries and generated evidence are excluded. Independent read-only publication and onboarding reviews completed; local Markdown links and MCP JSON/TOML examples validated. No reuse license was selected on the author's behalf. Publication did not restart the local app, change trading configuration or place trades.
+The initial snapshot included 62 files: complete Python/native/UI source, tests, lockfile, design sketch and development rules. Runtime databases, personal paths/account logs, secrets, binaries and generated evidence are excluded. Independent read-only publication and onboarding reviews completed; local Markdown links and MCP JSON/TOML examples validated. No reuse license was selected on the author's behalf. Publication did not restart the local app, change trading configuration or place trades.
