@@ -1,0 +1,199 @@
+<div id="pid-tick-envelope">
+  <h2>Tick 价格与 PID 双线通道</h2>
+  <div class="viz-row text-small text-muted"><span>合成行情 · 离线机制演示</span><span>1 盎司示意敞口 · 成本 $0.20 · 非实时行情</span></div>
+  <div class="viz-controls">
+    <label class="form-label">报价路径<select class="form-select" id="pid-scene"><option value="rise">短时急涨</option><option value="fall">短时急跌</option><option value="normal">正常波动</option><option value="gap">向下跳空</option><option value="offline">本地断线后急跌</option></select></label>
+    <label class="form-label">持仓方向<select class="form-select" id="pid-side"><option value="1">多单 · 按 Bid 退出</option><option value="-1">空单 · 按 Ask 退出</option></select></label>
+  </div>
+  <div id="pid-legend" class="viz-row" aria-label="曲线显示"></div>
+  <div id="pid-plot"><svg class="pid-plot-svg" role="img" aria-label="可平仓报价、PID 上下线与经纪商止损的时间序列"></svg><div class="tooltip" role="tooltip" id="pid-tooltip" hidden></div></div>
+  <div class="viz-row"><button type="button" class="btn btn-primary" id="pid-play">播放一次</button><label class="form-label" for="pid-time">观察时间 <output id="pid-time-value" class="tabular-nums">126.5 秒</output></label></div>
+  <input class="form-range" type="range" id="pid-time" min="0" max="126.5" value="126.5" step="0.1" aria-label="观察时间，秒">
+  <div id="pid-status" class="tabular-nums" aria-live="polite"></div>
+  <div class="text-small text-muted" id="pid-detail"></div>
+  <details>
+    <summary>调整通道距离与 PID</summary>
+    <div class="viz-controls">
+      <label class="form-label">上方距离 <output id="pid-up-value"></output> 美元/盎司<input class="form-range" id="pid-up" type="range" min="0.2" max="3" step="0.1" value="1"></label>
+      <label class="form-label">下方距离 <output id="pid-down-value"></output> 美元/盎司<input class="form-range" id="pid-down" type="range" min="0.2" max="3" step="0.1" value="1"></label>
+      <label class="form-label">P <output id="pid-p-value"></output> / 秒<input class="form-range" id="pid-p" type="range" min="0.05" max="3" step="0.05" value="0.8"></label>
+      <label class="form-label">I <output id="pid-i-value"></output> / 秒²<input class="form-range" id="pid-i" type="range" min="0" max="0.5" step="0.01" value="0.04"></label>
+      <label class="form-label">D <output id="pid-d-value"></output><input class="form-range" id="pid-d" type="range" min="0" max="1" step="0.02" value="0.12"></label>
+      <label class="form-label">启动浮盈 <output id="pid-start-value"></output> 美元<input class="form-range" id="pid-start" type="range" min="1" max="6" step="0.5" value="3"></label>
+    </div>
+  </details>
+  <details>
+    <summary>保护与成交假设</summary>
+    <div class="viz-controls">
+      <label class="form-label">经纪商 SL 目标收益 / 美元<input class="form-control" id="pid-lock" type="number" min="0" max="6" step="0.5" value="3"></label>
+      <label class="form-label">经纪商最小距离 / 美元每盎司<input class="form-control" id="pid-distance" type="number" min="0" max="2" step="0.05" value="0.35"></label>
+      <label class="form-label">模拟回执等待 / 秒<input class="form-control" id="pid-ack" type="number" min="0" max="3" step="0.1" value="0.4"></label>
+      <label class="form-label">模拟不利滑点 / 美元每盎司<input class="form-control" id="pid-slip" type="number" min="0" max="1" step="0.05" value="0.05"></label>
+    </div>
+    <div class="text-small text-muted">初始备用 SL 风险 $6 · 模拟平仓等待 0.25 秒 · 价格步长 0.01 · 不模拟流动性与完整交易商规则</div>
+  </details>
+  <div id="pid-error" role="alert" hidden></div>
+</div>
+<style>
+#pid-tick-envelope{min-width:0;color:var(--foreground)}
+#pid-tick-envelope #pid-plot{position:relative;width:100%;min-width:0}
+#pid-tick-envelope .pid-plot-svg{display:block;width:100%;overflow:visible}
+#pid-tick-envelope .pid-plot-svg text{fill:var(--foreground);font-size:12px;font-weight:400}
+#pid-tick-envelope .pid-plot-svg .domain,#pid-tick-envelope .pid-plot-svg .tick line{stroke:var(--border)}
+#pid-tick-envelope .pid-series-button{background:transparent;border:0;color:var(--foreground);padding:4px 0;display:inline-flex;align-items:center;gap:5px;font:inherit;min-width:0}
+#pid-tick-envelope .pid-series-button[aria-pressed="false"]{opacity:.5}
+#pid-tick-envelope .pid-swatch{display:inline-block;width:20px;height:0;border-top:2px solid var(--viz-series-1)}
+#pid-tick-envelope #pid-status{margin-top:8px;overflow-wrap:anywhere}
+#pid-tick-envelope #pid-detail{margin:6px 0 10px;overflow-wrap:anywhere}
+#pid-tick-envelope details{margin-top:10px}
+#pid-tick-envelope summary{color:var(--foreground)}
+#pid-tick-envelope #pid-tooltip{position:absolute;pointer-events:none;max-width:calc(100% - 8px);white-space:normal;z-index:2;background:var(--popover);color:var(--popover-foreground)}
+#pid-tick-envelope .pid-tooltip-row{display:flex;justify-content:space-between;gap:14px}
+#pid-tick-envelope .pid-legend-events{color:var(--muted-foreground)}
+@media(pointer:coarse){#pid-tick-envelope .pid-series-button{min-height:44px}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script id="pid-envelope-model">
+(function(root){
+  'use strict';
+  const defaults={side:1,entry:2500,units:1,costs:.2,activation:3,lock_profit:3,upper_distance:1,lower_distance:1,kp:.8,ki:.04,kd:.12,filter_seconds:.35,max_speed:1.5,integral_limit:20,max_dt:.25,price_step:.01,broker_distance:.35,ack_delay:.4,close_delay:.25,slippage:.05,initial_risk:6};
+  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+  function validate(c){
+    if(![-1,1].includes(c.side))throw Error('持仓方向无效');
+    for(const [k,v] of Object.entries(c))if(typeof v!=='number'||!Number.isFinite(v)||(k!=='side'&&v<0))throw Error('参数无效：'+k);
+    for(const k of ['entry','units','activation','upper_distance','lower_distance','filter_seconds','max_speed','integral_limit','max_dt','price_step','initial_risk'])if(c[k]<=0)throw Error('参数必须大于零：'+k);
+  }
+  class PIDCentre{
+    constructor(value,c){this.value=value;this.c=c;this.integral=0;this.derivative=0;this.previous_error=0;}
+    update(q,dt){
+      const c=this.c;if(dt<=0)return this.value;const error=q-this.value;
+      if(dt>c.max_dt){this.integral=0;this.derivative=0;this.previous_error=error;}
+      dt=Math.min(dt,c.max_dt);const alpha=dt/(c.filter_seconds+dt);
+      this.derivative+=alpha*((error-this.previous_error)/dt-this.derivative);
+      const candidate=c.ki?clamp(this.integral+error*dt,-c.integral_limit,c.integral_limit):0;
+      const output=integral=>{const raw=c.kp*error+c.ki*integral+c.kd*this.derivative;return [raw,clamp(clamp(raw,-c.max_speed,c.max_speed)*dt,Math.min(0,error),Math.max(0,error))];};
+      let [raw,move]=output(candidate);
+      if((raw-move/dt)*error>1e-12)[raw,move]=output(this.integral);else this.integral=candidate;
+      this.value+=move;this.previous_error=error;return this.value;
+    }
+  }
+  class Experiment{
+    constructor(c={}){this.c={...defaults,...c};validate(this.c);this.pid=null;this.last=null;this.lastPID=null;this.broker=this.price(-this.c.initial_risk);this.pendingStop=null;this.exit=null;this.fill=null;this.events=[];this.activation=null;this.locked=false;}
+    profit(q){return this.c.side*(q-this.c.entry)*this.c.units-this.c.costs;}
+    price(net){return this.c.entry+this.c.side*(net+this.c.costs)/this.c.units;}
+    lockPrice(){const raw=this.price(this.c.lock_profit)/this.c.price_step;return (this.c.side===1?Math.ceil(raw-1e-9):Math.floor(raw+1e-9))*this.c.price_step;}
+    bounds(){return this.pid?[this.pid.value-this.c.lower_distance,this.pid.value+this.c.upper_distance]:[null,null];}
+    step(t,q,online=true){
+      if(!Number.isFinite(t)||!Number.isFinite(q)||t<0||q<=0||(this.last!==null&&t<this.last))throw Error('Tick 时间或报价无效');
+      const c=this.c,dt=this.last===null?0:t-this.last;this.last=t;const emitted=[];
+      const event=(kind,data={})=>{const e={kind,time:t,price:q,...data};this.events.push(e);emitted.push(e);};
+      if(this.fill===null){
+        if(c.side*(q-this.broker)<=0&&(!this.exit||this.exit.source!=='broker')){event('broker_touch',{level:this.broker});this.exit={source:'broker',time:t,due:t+c.close_delay,level:this.broker};}
+        const [lo,hi]=this.bounds();
+        if(online&&!this.exit&&lo!==null){
+          const crossed=q<=lo?'lower':q>=hi?'upper':null;
+          if(crossed){const level=crossed==='lower'?lo:hi;event('local_touch',{boundary:crossed,level});this.exit={source:'local',boundary:crossed,time:t,due:t+c.close_delay,level};}
+        }
+        if(this.exit){
+          if(t>=this.exit.due&&(online||this.exit.source==='broker')){const actual=q-c.side*c.slippage;this.fill={time:t,price:actual,profit:this.profit(actual),source:this.exit.source};event('fill',{execution_price:actual,profit:this.fill.profit,source:this.fill.source});}
+        }else if(online){
+          if(!this.pid&&this.profit(q)>=c.activation-1e-9){this.pid=new PIDCentre(q,c);this.lastPID=t;this.activation=t;event('activated');}
+          else if(this.pid){this.pid.update(q,t-this.lastPID);this.lastPID=t;}
+          const target=this.lockPrice(),valid=c.side*(q-target)>=c.broker_distance+c.price_step,tighter=c.side*(target-this.broker)>0;
+          if(this.pendingStop&&t>=this.pendingStop.due){
+            if(valid&&tighter){this.broker=this.pendingStop.price;this.locked=true;event('stop_ack',{level:this.broker});}else event('stop_rejected');
+            this.pendingStop=null;
+          }
+          if(this.pid&&!this.locked&&!this.pendingStop&&valid&&tighter){this.pendingStop={price:target,due:t+c.ack_delay};event('stop_request',{level:target});}
+        }
+      }
+      const [lower,upper]=this.bounds();
+      return {time:t,price:q,online,profit:this.profit(q),lower,upper,centre:this.pid?this.pid.value:null,broker_sl:this.broker,lock_confirmed:this.locked,stop_pending:!!this.pendingStop,state:this.fill?'closed':this.exit?'exit_pending':this.pid?'tracking':'waiting',events:emitted,fill:this.fill,activation_time:this.activation};
+    }
+  }
+  function simulate(p={},scenario='rise'){
+    if(!['normal','rise','fall','gap','offline'].includes(scenario))throw Error('场景无效');
+    const e=new Experiment(p),rows=[];let t=0;
+    for(let i=0;i<1100;i++){
+      t+=[.08,.12,.16,.1][i%4];
+      const gain=.085*t-.2+.055*Math.sin(t*1.7)+.035*Math.sin(t*4.3),shock=t>=80?({normal:0,rise:2.6,fall:-1.9,gap:-6,offline:-4.2}[scenario]):0;
+      rows.push(e.step(Number(t.toFixed(6)),2500+e.c.side*gain+shock,!(scenario==='offline'&&t>=70&&t<95)));
+    }
+    return {config:e.c,scenario,rows,events:e.events,fill:e.fill};
+  }
+  root.PIDEnvelopeDemo={defaults,PIDCentre,Experiment,simulate};
+})(globalThis);
+</script>
+<script>
+(function(){
+  'use strict';
+  const root=document.getElementById('pid-tick-envelope'),get=id=>root.querySelector('#'+id),model=globalThis.PIDEnvelopeDemo;
+  const error=get('pid-error');if(!globalThis.d3){error.hidden=false;error.textContent='图表资源未加载，请重新打开演示。';return;}
+  const fields={upper_distance:'up',lower_distance:'down',kp:'p',ki:'i',kd:'d',activation:'start',lock_profit:'lock',broker_distance:'distance',ack_delay:'ack',slippage:'slip'};
+  const series=[{key:'price',name:'可平仓报价',color:'var(--viz-series-1)',dash:''},{key:'upper',name:'PID 上线',color:'var(--viz-series-2)',dash:'7 3'},{key:'lower',name:'PID 下线',color:'var(--viz-series-3)',dash:'3 3'},{key:'broker_sl',name:'已确认经纪商 SL',color:'var(--viz-series-4)',dash:''},{key:'reference',name:'目标收益参考',color:'var(--muted-foreground)',dash:'2 5'}];
+  let visible=new Set(series.map(v=>v.key)),result=null,current=126.5,playing=false,raf=0,lastFrame=0,hoverX=null,pinned=false;
+  const plot=get('pid-plot'),svg=d3.select(root.querySelector('.pid-plot-svg')),tooltip=get('pid-tooltip');
+  const money=x=>(x>=0?'+':'−')+'$'+Math.abs(x).toFixed(2),fmt=x=>x.toFixed(2);
+  function config(){const c={side:Number(get('pid-side').value)};for(const [k,id] of Object.entries(fields)){c[k]=Number(get('pid-'+id).value);const out=get('pid-'+id+'-value');if(out)out.textContent=c[k].toFixed(k==='ki'||k==='kp'||k==='kd'?2:1);}return c;}
+  function remember(){if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{kind:'pid-envelope-experiment',scenario:get('pid-scene').value,parameters:config(),synthetic:true},privateContent:{current,visible:[...visible]}}).catch(()=>{});}
+  function applySaved(saved){if(!saved)return;const c=saved.modelContent?.parameters||{};for(const [k,id] of Object.entries(fields))if(Number.isFinite(c[k])){const el=get('pid-'+id),n=Math.max(Number(el.min),Math.min(Number(el.max),c[k]));el.value=n;}if([-1,1].includes(c.side))get('pid-side').value=c.side;if(['normal','rise','fall','gap','offline'].includes(saved.modelContent?.scenario))get('pid-scene').value=saved.modelContent.scenario;if(Number.isFinite(saved.privateContent?.current))current=Math.max(0,Math.min(126.5,saved.privateContent.current));if(Array.isArray(saved.privateContent?.visible))visible=new Set(saved.privateContent.visible.filter(k=>series.some(s=>s.key===k)));}
+  function legend(){const host=get('pid-legend');host.replaceChildren();for(const s of series){const b=document.createElement('button');b.type='button';b.className='pid-series-button cursor-interaction text-small';b.setAttribute('aria-pressed',String(visible.has(s.key)));const sw=document.createElement('span');sw.className='pid-swatch';sw.style.borderTopColor=s.color;if(s.dash)sw.style.borderTopStyle='dashed';b.append(sw,document.createTextNode(s.name));b.addEventListener('click',()=>{if(visible.has(s.key))visible.delete(s.key);else visible.add(s.key);legend();draw(false);remember();});host.append(b);}}
+  function stop(){playing=false;cancelAnimationFrame(raf);get('pid-play').textContent='播放一次';}
+  function recompute(save=false){stop();try{result=model.simulate(config(),get('pid-scene').value);error.hidden=true;legend();draw(true);if(save)remember();}catch(e){error.hidden=false;error.textContent=e.message;}}
+  function rowAt(t){const i=d3.bisector(d=>d.time).right(result.rows,t)-1;return result.rows[Math.max(0,i)];}
+  function draw(animate){
+    if(!result)return;const width=Math.max(280,plot.getBoundingClientRect().width),height=width<430?310:370,m={left:70,right:16,top:30,bottom:48},end=result.rows.at(-1).time;
+    current=Math.min(current,end);get('pid-time').max=end;get('pid-time').value=current;get('pid-time-value').textContent=current.toFixed(1)+' 秒';
+    const c=result.config,reference=c.entry+c.side*(c.lock_profit+c.costs)/c.units;
+    const frameRows=result.rows.filter(r=>r.time<=current),fillTime=result.fill?.time??Infinity;
+    const values=result.rows.flatMap(r=>[r.price,r.broker_sl,...(r.time<=fillTime?[r.lower,r.upper]:[])]).filter(Number.isFinite).concat([reference]);
+    const [a,b]=d3.extent(values),pad=Math.max(.4,(b-a)*.08),x=d3.scaleLinear().domain([0,end]).range([m.left+4,width-m.right-4]),y=d3.scaleLinear().domain([a-pad,b+pad]).range([height-m.bottom-4,m.top+4]);
+    svg.attr('viewBox',`0 0 ${width} ${height}`).attr('height',height);
+    svg.selectAll('title').data([0]).join('title').text('合成 Tick：PID 双向价格通道、触发与模拟成交');
+    svg.selectAll('desc').data([0]).join('desc').text('横轴为秒，纵轴为示意黄金报价。浮盈达到门槛后通道激活；先判旧线，再更新PID；经纪商SL只有模拟确认后改变。');
+    const defs=svg.selectAll('defs').data([0]).join('defs');defs.selectAll('clipPath').data([0]).join('clipPath').attr('id','pid-frame-clip').selectAll('rect').data([0]).join('rect').attr('x',m.left).attr('y',m.top).attr('width',width-m.left-m.right).attr('height',height-m.top-m.bottom);
+    svg.selectAll('rect[data-chart-frame]').data([0]).join('rect').attr('data-chart-frame','').attr('x',m.left).attr('y',m.top).attr('width',width-m.left-m.right).attr('height',height-m.top-m.bottom).attr('fill','none').attr('stroke','var(--border)');
+    svg.selectAll('.pid-x-axis').data([0]).join('g').attr('class','pid-x-axis').attr('transform',`translate(0,${height-m.bottom})`).call(d3.axisBottom(x).ticks(width<430?3:6).tickFormat(d=>d+'')).call(g=>g.select('.domain').remove());
+    svg.selectAll('.pid-y-axis').data([0]).join('g').attr('class','pid-y-axis').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.1f'))).call(g=>g.select('.domain').remove());
+    svg.selectAll('text.axis-title[data-axis="x"]').data([0]).join('text').attr('class','axis-title').attr('data-axis','x').attr('x',(m.left+width-m.right)/2).attr('y',height-7).attr('text-anchor','middle').text('经过时间 / 秒');
+    svg.selectAll('text.axis-title[data-axis="y"]').data([0]).join('text').attr('class','axis-title').attr('data-axis','y').attr('x',m.left).attr('y',16).text('报价 / 美元每盎司');
+    const content=svg.selectAll('.pid-lines').data([0]).join('g').attr('class','pid-lines').attr('clip-path','url(#pid-frame-clip)');
+    const offline=result.scenario==='offline'&&current>=70?[{start:70,end:Math.min(95,current)}]:[];
+    content.selectAll('.pid-offline').data(offline).join('rect').attr('class','pid-offline').attr('x',d=>x(d.start)).attr('width',d=>Math.max(0,x(d.end)-x(d.start))).attr('y',m.top).attr('height',height-m.top-m.bottom).attr('fill','var(--muted)').attr('opacity',.55);
+    const datasets=series.filter(s=>visible.has(s.key)).map(s=>({s,rows:frameRows.map(r=>({time:r.time,value:s.key==='reference'?reference:((s.key==='upper'||s.key==='lower'||s.key==='broker_sl')&&r.time>fillTime?null:r[s.key])}))}));
+    const line=d3.line().defined(d=>Number.isFinite(d.value)).x(d=>x(d.time)).y(d=>y(d.value));
+    const paths=content.selectAll('path.pid-line').data(datasets,d=>d.s.key).join('path').attr('class','pid-line').attr('fill','none').attr('stroke',d=>d.s.color).attr('stroke-width',d=>d.s.key==='price'?2:1.6).attr('stroke-dasharray',d=>d.s.dash);
+    if(animate&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)paths.interrupt().transition().duration(180).attr('d',d=>line(d.rows));else paths.interrupt().attr('d',d=>line(d.rows));
+    const events=result.events.filter(e=>e.time<=current&&['activated','stop_ack','local_touch','broker_touch','fill'].includes(e.kind));
+    const marks=content.selectAll('path.pid-event').data(events,e=>e.kind+':'+e.time).join('path').attr('class','pid-event').attr('transform',e=>`translate(${x(e.time)},${y(e.kind==='fill'?e.execution_price:e.kind==='stop_ack'?e.level:e.price)})`).attr('d',d3.symbol().type(e=>e.kind==='fill'?d3.symbolDiamond:e.kind.endsWith('touch')?d3.symbolTriangle:d3.symbolCircle).size(55)).attr('fill','var(--foreground)').attr('stroke','var(--background)').attr('stroke-width',1);
+    content.selectAll('[data-chart-hover-guide]').data([0]).join('line').attr('data-chart-hover-guide','').attr('y1',m.top).attr('y2',height-m.bottom).attr('stroke','var(--muted-foreground)').attr('stroke-width',1).attr('visibility','hidden');
+    content.selectAll('circle[data-chart-hover-marker]').remove();
+    const overlay=svg.selectAll('rect[data-chart-hover-overlay]').data([0]).join('rect').attr('data-chart-hit','').attr('data-chart-hover-overlay','cross-series').attr('x',m.left).attr('y',m.top).attr('width',width-m.left-m.right).attr('height',height-m.top-m.bottom).attr('fill','transparent');
+    function hover(event){
+      const px=Math.max(x(0),Math.min(x(current),d3.pointer(event,svg.node())[0])),at=x.invert(px);hoverX=px;
+      content.select('[data-chart-hover-guide]').attr('x1',px).attr('x2',px).attr('visibility','visible');
+      const idx=d3.bisector(d=>d.time).left(result.rows,at),right=result.rows[Math.min(idx,result.rows.length-1)],left=result.rows[Math.max(0,idx-1)],f=right.time===left.time?0:(at-left.time)/(right.time-left.time),points=[];
+      for(const s of series.filter(s=>visible.has(s.key))){let value=null;if(s.key==='reference')value=reference;else if(s.key==='price'||at<=fillTime){const l=left[s.key],r=right[s.key];if(Number.isFinite(l)&&Number.isFinite(r))value=l+(r-l)*f;}if(value!==null)points.push({s,value});}
+      content.selectAll('circle[data-chart-hover-marker]').data(points,d=>d.s.key).join('circle').attr('data-chart-hover-marker','').attr('cx',px).attr('cy',d=>y(d.value)).attr('r',3).attr('fill',d=>d.s.color);
+      tooltip.replaceChildren();const time=document.createElement('div');time.textContent=at.toFixed(2)+' 秒';tooltip.append(time);
+      for(const p of points){const row=document.createElement('div');row.className='pid-tooltip-row';const label=document.createElement('span'),value=document.createElement('span');label.textContent=p.s.name;value.textContent=fmt(p.value);row.append(label,value);tooltip.append(row);}
+      tooltip.hidden=false;tooltip.style.left=Math.max(4,Math.min(width-tooltip.offsetWidth-4,px+12))+'px';tooltip.style.top=(m.top+8)+'px';
+    }
+    overlay.on('pointermove',event=>{if(!pinned)hover(event);}).on('pointerleave',()=>{if(!pinned){tooltip.hidden=true;content.select('[data-chart-hover-guide]').attr('visibility','hidden');content.selectAll('circle[data-chart-hover-marker]').remove();}}).on('click',event=>{pinned=!pinned;hover(event);});
+    const row=rowAt(current),shownEvents=result.events.filter(e=>e.time<=current),trigger=shownEvents.find(e=>e.kind.endsWith('touch')),fill=shownEvents.find(e=>e.kind==='fill'),active=shownEvents.find(e=>e.kind==='activated');
+    let status=fill?`模拟成交 ${money(fill.profit)} · ${fill.time.toFixed(2)} 秒`:trigger?`已触发退出 · 等待模拟成交`:row.state==='tracking'?'PID 通道已启动':'等待浮盈达到启动门槛';
+    if(!row.online&&!fill)status+=' · 本地断线';get('pid-status').textContent=status;
+    const protection=row.lock_confirmed?`经纪商 SL 已模拟确认 · 目标 ${money(c.lock_profit)}`:row.stop_pending?'经纪商 SL 申请中 · 尚未确认':`经纪商仍为初始 SL · 目标 ${money(c.lock_profit)} 尚未生效`;
+    get('pid-detail').textContent=protection+(trigger?`；${trigger.kind==='broker_touch'?'经纪商 SL 触发':trigger.boundary==='upper'?'价格穿过旧上线':'价格穿过旧下线'} ${trigger.time.toFixed(2)} 秒`:(active?`；通道在 ${active.time.toFixed(2)} 秒启动`:''));
+    tooltip.hidden=true;
+    // De-clutter secondary ticks if a narrow viewport leaves overlapping labels.
+    const tickTexts=[...svg.node().querySelectorAll('.pid-x-axis text')];let last=-Infinity;
+    for(const text of tickTexts){text.style.visibility='visible';const box=text.getBoundingClientRect();if(box.left<last+4)text.style.visibility='hidden';else last=box.right;}
+  }
+  for(const id of ['pid-scene','pid-side',...Object.values(fields).map(v=>'pid-'+v)])get(id).addEventListener('input',()=>recompute(true));
+  get('pid-time').addEventListener('input',()=>{stop();current=Number(get('pid-time').value);draw(false);remember();});
+  get('pid-play').addEventListener('click',()=>{if(playing){stop();remember();return;}playing=true;current=0;lastFrame=performance.now();get('pid-play').textContent='暂停';const frame=now=>{if(!playing)return;current+=(now-lastFrame)/1000*8;lastFrame=now;if(current>=result.rows.at(-1).time){current=result.rows.at(-1).time;draw(false);stop();remember();return;}draw(false);raf=requestAnimationFrame(frame);};raf=requestAnimationFrame(frame);});
+  applySaved(window.openai?.widgetState);legend();recompute(false);new ResizeObserver(()=>draw(false)).observe(plot);
+  window.addEventListener('openai:set_globals',event=>{applySaved(event.detail?.globals?.widgetState);recompute(false);});
+})();
+</script>

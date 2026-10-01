@@ -1,0 +1,33 @@
+FusionPIDTrader 1.00 — 原生 MT5 EA
+
+安装包中 MQL5/Experts/FusionPIDTrader 下包含：
+  FusionPIDTrader.ex5  已编译的可安装 EA
+  FusionPIDTrader.mq5  EA 和原生界面源码
+  FusionPIDCore.mqh    PID 控制器源码
+
+1. MT5 → 文件 → 打开数据文件夹。
+2. 将安装包的 MQL5 文件夹合并复制到这个数据文件夹。
+3. 导航器 → EA 交易 → 右键刷新，展开 FusionPIDTrader。
+4. 如果还在使用 FusionExecutor，先停止旧工作台管理，确认旧 EA 暂停、
+   账户空仓且没有待确认交易，再移除旧 EA。不要同时启动两个执行器。
+5. 打开 XAUUSD、M1 图表，将 FusionPIDTrader 拖入，允许算法交易。
+6. 原生面板 → 参数与时段：核对参数并保存。起止小时相同表示全天，时区 UTC。
+7. 交易与曲线 → 启动模拟盘 / START。只有满足策略和风险条件才会开仓。
+
+只接受 USD 模拟账户。首次挂载、EA 重载和终端重启后需手动 START。
+暂停仍管理本 EA 持仓；移除 EA 或关闭终端后只有经纪商已确认的保护继续。
+预计盈利 3 USD 是默认 PID 激活阈值和独立经纪商锁盈目标，不是保证收益。
+
+面板包含交易与曲线、参数与时段、AI 复盘与对话三个页面。
+图表可视高度建议至少 550 像素；缩小下方工具箱可留出空间。
+
+AI 后台可选；EA 的 Tick 交易不依赖网页或 Python。
+AI 功能需要克隆下面的仓库并安装 Python 依赖，设置 DEEPSEEK 环境变量，
+然后运行 Start-PID-AI.cmd。AI 配置、提示词分别在 data/pid-manager.json
+和 data/pid-manager-prompt.txt。默认仅建议，不自动应用参数。
+
+仓库： https://github.com/DennyClarkson/AgentFusionTrade-VIBE
+详细说明： https://github.com/DennyClarkson/AgentFusionTrade-VIBE/blob/main/docs/PID-EA.md
+
+当前默认策略尚未通过稳定盈利验收，独立新闻日历尚未接入。
+原生真实 Tick 单日功能回放结果及未验证场景见仓库 docs/HANDOFF.md。
