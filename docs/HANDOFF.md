@@ -54,6 +54,8 @@ The complete pre-publication handoff was retained locally as ignored `docs/HANDO
 4. Improve configuration ergonomics and continue separating operational evidence from archived local history.
 5. Decide an explicit reuse license before describing the repository as licensed open source.
 
-## Public publication preparation
+## Public repository
 
-Repository target: `DennyClarkson/AgentFusionTrade-VIBE`, public. The initial snapshot includes complete Python/native/UI source, tests, lockfile, design sketch and development rules. Runtime databases, personal paths/account logs, secrets, binaries and generated evidence are excluded. Publication itself does not restart the local app, change trading configuration or place trades.
+Published to [DennyClarkson/AgentFusionTrade-VIBE](https://github.com/DennyClarkson/AgentFusionTrade-VIBE), public, default branch `main`. Initial source snapshot: `588b310`. Public visibility and matching local/remote source revision were verified on 2026-10-01.
+
+The snapshot includes 62 files: complete Python/native/UI source, tests, lockfile, design sketch and development rules. Runtime databases, personal paths/account logs, secrets, binaries and generated evidence are excluded. Independent read-only publication and onboarding reviews completed; local Markdown links and MCP JSON/TOML examples validated. No reuse license was selected on the author's behalf. Publication did not restart the local app, change trading configuration or place trades.
